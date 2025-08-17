@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { authService } from '@/services/auth-service';
+import { authService } from '../services/auth-service';
 import { supabase } from '@/lib/supabase';
 
 export interface UserPermissions {

@@ -2,11 +2,11 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { authService } from '@/services/auth-service';
-import { usePermissions } from '@/hooks/use-permissions';
-import { NewWeeklyCalendar } from '@/components/calendar/new-weekly-calendar';
-import { EditAppointmentModal } from '@/components/calendar/edit-appointment-modal';
-import type { Appointment } from '@/types/appointment';
+import { authService } from '../../../services/auth-service';
+import { usePermissions } from '../../../hooks/use-permissions';
+import { NewWeeklyCalendar } from '../../../components/calendar/new-weekly-calendar';
+import { EditAppointmentModal } from '../../../components/calendar/edit-appointment-modal';
+import type { Appointment } from '../../../types/appointment';
 
 function CalendarPageContent() {
   const router = useRouter();
