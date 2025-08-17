@@ -23,7 +23,7 @@ import {
   Settings,
   Home,
 } from 'lucide-react';
-import { calendarService } from '../../services/calendar-service';
+import { calendarService } from '@/services/calendar-service';
 import {
   format,
   addDays,
@@ -195,7 +195,7 @@ export function NewWeeklyCalendar({
           reason: apt.speciality?.name || 'Consulta veterinaria',
           notes: '', // Not available in current schema
           owner: {
-            id: apt.pet?.owner?.id?.toString() || 'unknown',
+            id: 'unknown',
             name: apt.pet?.owner?.nombre || 'Cliente',
             phone: apt.pet?.owner?.telefono || '',
             email: apt.pet?.owner?.correo || ''
