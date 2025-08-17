@@ -37,7 +37,7 @@ import {
 import { es } from 'date-fns/locale';
 import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 import type { Appointment } from '@/types/appointment';
-import { appointmentService } from '../../services/appointment-service';
+import { appointmentService } from '@/services/appointment-service';
 
 const editAppointmentSchema = z.object({
   date: z.string().min(1, 'La fecha es obligatoria'),
