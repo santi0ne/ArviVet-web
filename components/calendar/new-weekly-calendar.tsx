@@ -23,7 +23,7 @@ import {
   Settings,
   Home,
 } from 'lucide-react';
-import { calendarService } from '@/services/calendar-service';
+import { calendarService } from '@/services';
 import {
   format,
   addDays,
