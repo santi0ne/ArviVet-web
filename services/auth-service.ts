@@ -102,7 +102,9 @@ class AuthService {
         'asistente': 'asistente'
       }
 
-      const dbUserType = userData.u_roles?.nombre || 'Cliente'
+      const dbUserType = Array.isArray(userData.u_roles) && userData.u_roles.length > 0 
+        ? userData.u_roles[0].nombre 
+        : (userData.u_roles as any)?.nombre || 'Cliente'
       const mappedUserType = roleMapping[dbUserType] || 'cliente'
 
       // Verificar que el tipo de usuario coincida con el solicitado (si se especificó)

@@ -82,6 +82,7 @@ interface EditAppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (appointment: Appointment) => void;
+  canEdit?: boolean;
 }
 
 export function EditAppointmentModal({

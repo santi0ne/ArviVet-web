@@ -195,10 +195,10 @@ export function NewWeeklyCalendar({
           reason: apt.speciality?.name || 'Consulta veterinaria',
           notes: '', // Not available in current schema
           owner: {
-            id: apt.pet?.users?.id?.toString() || 'unknown',
-            name: apt.pet?.users?.nombre || 'Cliente',
-            phone: apt.pet?.users?.telefono || '',
-            email: apt.pet?.users?.correo || ''
+            id: apt.pet?.owner?.id?.toString() || 'unknown',
+            name: apt.pet?.owner?.nombre || 'Cliente',
+            phone: apt.pet?.owner?.telefono || '',
+            email: apt.pet?.owner?.correo || ''
           },
           pet: {
             id: apt.pet?.id?.toString() || 'unknown',
@@ -216,7 +216,7 @@ export function NewWeeklyCalendar({
           updatedAt: new Date().toISOString()
         }));
         
-        setAppointments(transformedAppointments);
+        setAppointments(transformedAppointments as Appointment[]);
       }
     } catch (error) {
       console.error('Error loading appointments:', error);
