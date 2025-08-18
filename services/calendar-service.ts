@@ -160,76 +160,6 @@ class CalendarService {
     }
   }
 
-  // Actualizar una cita existente
-  async updateAppointment(
-    appointmentId: number,
-    updateData: {
-      date?: string;
-      hour?: string;
-      vet_id?: number;
-      status?: string;
-      duration_minutes?: number;
-    }
-  ): Promise<{ data: AppointmentWithDetails | null; error: string | null }> {
-    try {
-      console.log('Updating appointment:', appointmentId, updateData);
-
-      const { data, error } = await supabase
-        .from('appointment')
-        .update(updateData)
-        .eq('id', appointmentId)
-        .select(`
-          id,
-          user_id,
-          date,
-          hour,
-          duration_minutes,
-          speciality_id,
-          pet_id,
-          branch_id,
-          vet_id,
-          status,
-          pet!pet_id (
-            id,
-            name,
-            breed
-          ),
-          users!user_id (
-            id,
-            nombre,
-            correo,
-            telefono,
-            direccion
-          ),
-          vet!vet_id (
-            id,
-            name,
-            email,
-            telephone
-          ),
-          speciality!speciality_id (
-            id,
-            name
-          )
-        `)
-        .single();
-
-      if (error) {
-        console.error('Error updating appointment:', error);
-        return { data: null, error: error.message };
-      }
-
-      console.log('Updated appointment data:', data);
-      return { data, error: null };
-
-    } catch (error) {
-      console.error('Calendar service update error:', error);
-      return { 
-        data: null, 
-        error: error instanceof Error ? error.message : 'Error desconocido al actualizar' 
-      };
-    }
-  }
 
   // Obtener veterinarios disponibles
   async getAvailableVets(): Promise<{ data: {id: number, name: string}[] | null; error: string | null }> {
@@ -308,12 +238,21 @@ class CalendarService {
     permissions: UserPermissions
   ): Promise<{ data: Appointment | null; error: string | null }> {
     try {
+      console.log('UpdateAppointment called with:', { appointmentId, updateData, permissions });
+      
       // Verificar permisos para esta cita específica
-      const { data: existingAppointment } = await supabase
+      const { data: existingAppointment, error: fetchError } = await supabase
         .from('appointment')
         .select('vet_id')
         .eq('id', appointmentId)
         .single();
+
+      console.log('Existing appointment check:', { existingAppointment, fetchError });
+
+      if (fetchError) {
+        console.error('Error fetching appointment:', fetchError);
+        return { data: null, error: `Error buscando cita: ${fetchError.message}` };
+      }
 
       if (!existingAppointment) {
         return { data: null, error: 'Cita no encontrada' };
@@ -322,6 +261,8 @@ class CalendarService {
       // Verificar si puede editar esta cita
       const canEdit = permissions.canModifySchedules || 
         (permissions.isVet && permissions.currentVetId === existingAppointment.vet_id);
+
+      console.log('Permission check:', { canEdit, canModifySchedules: permissions.canModifySchedules, isVet: permissions.isVet, currentVetId: permissions.currentVetId, appointmentVetId: existingAppointment.vet_id });
 
       if (!canEdit) {
         return { data: null, error: 'Sin permisos para editar esta cita' };

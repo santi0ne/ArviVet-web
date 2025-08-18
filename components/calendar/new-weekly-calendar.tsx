@@ -51,6 +51,17 @@ export function NewWeeklyCalendar({
   onEditAppointment,
   selectedVetId,
 }: NewWeeklyCalendarProps) {
+  // Ensure permissions is defined to prevent undefined property access
+  const safePermissions = permissions || {
+    canModifySchedules: false,
+    canViewAllVets: false,
+    canViewAllPets: false,
+    canManageStaff: false,
+    canViewReports: false,
+    isAdmin: false,
+    isVet: false,
+    userRole: '',
+  };
   const router = useRouter();
   const TIMEZONE = 'America/Guayaquil';
 
@@ -419,7 +430,7 @@ export function NewWeeklyCalendar({
 
       console.log('Updating appointment in Supabase:', { appointmentId, updateData });
 
-      const response = await calendarService.updateAppointment(appointmentId, updateData);
+      const response = await calendarService.updateAppointment(appointmentId, updateData, safePermissions);
       
       if (response.error) {
         console.error('Error updating appointment:', response.error);
@@ -787,7 +798,7 @@ export function NewWeeklyCalendar({
                   />
                 ) : (
                   <div className="arvi-user-avatar-fallback apple-avatar">
-                    {userData?.name?.charAt(0) || (permissions.isAdmin ? 'A' : permissions.isVet ? 'V' : 'U')}
+                    {userData?.name?.charAt(0) || (safePermissions.isAdmin ? 'A' : safePermissions.isVet ? 'V' : 'U')}
                   </div>
                 )}
               </button>
@@ -806,7 +817,7 @@ export function NewWeeklyCalendar({
                     </div>
                     <div className="profile-item">
                       <span className="profile-label">Tipo</span>
-                      <span className="profile-value">{permissions.isAdmin ? 'Administrador' : permissions.isVet ? 'Veterinario' : 'Usuario'}</span>
+                      <span className="profile-value">{safePermissions.isAdmin ? 'Administrador' : safePermissions.isVet ? 'Veterinario' : 'Usuario'}</span>
                     </div>
                     <div className="profile-item">
                       <span className="profile-label">ID</span>
