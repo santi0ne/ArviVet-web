@@ -26,11 +26,13 @@ export interface AppointmentWithDetails {
     name: string;
     specie: string;
     breed: string;
-    owner: {
-      nombre: string;
-      correo: string;
-      telefono?: string;
-    };
+  };
+  users?: {
+    id: number;
+    nombre: string;
+    correo: string;
+    telefono?: string;
+    direccion?: string;
   };
   vet?: {
     id: number;
@@ -70,28 +72,29 @@ class CalendarService {
           branch_id,
           vet_id,
           status,
-          pet:pet_id (
+          pet!pet_id (
             id,
             name,
-            specie,
-            breed,
-            users:owner_id (
-              nombre,
-              correo,
-              telefono
-            )
+            breed
           ),
-          vet:vet_id (
+          users!user_id (
+            id,
+            nombre,
+            correo,
+            telefono,
+            direccion
+          ),
+          vet!vet_id (
             id,
             name,
             email,
             telephone
           ),
-          speciality:speciality_id (
+          speciality!speciality_id (
             id,
             name
           ),
-          branch:branch_id (
+          branch!branch_id (
             id,
             direction,
             telephone
@@ -139,24 +142,11 @@ class CalendarService {
       // Mapear los datos para asegurar compatibilidad de tipos
       const mappedData: AppointmentWithDetails[] = data.map(appointment => ({
         ...appointment,
-        pet: appointment.pet && Array.isArray(appointment.pet) && appointment.pet.length > 0 ? {
-          id: appointment.pet[0].id,
-          name: appointment.pet[0].name,
-          specie: appointment.pet[0].specie,
-          breed: appointment.pet[0].breed,
-          owner: Array.isArray(appointment.pet[0].users) && appointment.pet[0].users.length > 0 
-            ? appointment.pet[0].users[0] 
-            : { nombre: '', correo: '', telefono: '' }
-        } : undefined,
-        vet: appointment.vet && Array.isArray(appointment.vet) && appointment.vet.length > 0 
-          ? appointment.vet[0] 
-          : undefined,
-        speciality: appointment.speciality && Array.isArray(appointment.speciality) && appointment.speciality.length > 0 
-          ? appointment.speciality[0] 
-          : undefined,
-        branch: appointment.branch && Array.isArray(appointment.branch) && appointment.branch.length > 0 
-          ? appointment.branch[0] 
-          : undefined
+        pet: appointment.pet,
+        users: appointment.users,
+        vet: appointment.vet,
+        speciality: appointment.speciality,
+        branch: appointment.branch
       }));
 
       return { data: mappedData, error: null };
@@ -166,6 +156,101 @@ class CalendarService {
       return { 
         data: null, 
         error: error instanceof Error ? error.message : 'Error desconocido' 
+      };
+    }
+  }
+
+  // Actualizar una cita existente
+  async updateAppointment(
+    appointmentId: number,
+    updateData: {
+      date?: string;
+      hour?: string;
+      vet_id?: number;
+      status?: string;
+      duration_minutes?: number;
+    }
+  ): Promise<{ data: AppointmentWithDetails | null; error: string | null }> {
+    try {
+      console.log('Updating appointment:', appointmentId, updateData);
+
+      const { data, error } = await supabase
+        .from('appointment')
+        .update(updateData)
+        .eq('id', appointmentId)
+        .select(`
+          id,
+          user_id,
+          date,
+          hour,
+          duration_minutes,
+          speciality_id,
+          pet_id,
+          branch_id,
+          vet_id,
+          status,
+          pet!pet_id (
+            id,
+            name,
+            breed
+          ),
+          users!user_id (
+            id,
+            nombre,
+            correo,
+            telefono,
+            direccion
+          ),
+          vet!vet_id (
+            id,
+            name,
+            email,
+            telephone
+          ),
+          speciality!speciality_id (
+            id,
+            name
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error updating appointment:', error);
+        return { data: null, error: error.message };
+      }
+
+      console.log('Updated appointment data:', data);
+      return { data, error: null };
+
+    } catch (error) {
+      console.error('Calendar service update error:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Error desconocido al actualizar' 
+      };
+    }
+  }
+
+  // Obtener veterinarios disponibles
+  async getAvailableVets(): Promise<{ data: {id: number, name: string}[] | null; error: string | null }> {
+    try {
+      const { data, error } = await supabase
+        .from('vet')
+        .select('id, name')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching vets:', error);
+        return { data: null, error: error.message };
+      }
+
+      return { data: data || [], error: null };
+
+    } catch (error) {
+      console.error('Error fetching vets:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Error al obtener veterinarios' 
       };
     }
   }

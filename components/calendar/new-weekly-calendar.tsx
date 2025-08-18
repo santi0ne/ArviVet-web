@@ -63,6 +63,12 @@ export function NewWeeklyCalendar({
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editForm, setEditForm] = useState({
+    date: '',
+    vet_id: 0
+  });
+  const [availableVets, setAvailableVets] = useState<{id: number, name: string}[]>([]);
   const [currentDateTime, setCurrentDateTime] = useState(
     getCurrentEcuadorTime()
   );
@@ -184,37 +190,57 @@ export function NewWeeklyCalendar({
         console.error('Error loading appointments:', response.error);
         setAppointments([]);
       } else {
-        // Transform the data to match the Appointment interface
-        const transformedAppointments = (response.data || []).map(apt => ({
-          id: apt.id.toString(),
-          date: apt.date,
-          time: apt.hour,
-          duration: apt.duration_minutes || 60,
-          status: apt.status,
-          type: 'consulta_general', // Map from speciality if needed
-          reason: apt.speciality?.name || 'Consulta veterinaria',
-          notes: '', // Not available in current schema
-          owner: {
-            id: 'unknown',
-            name: apt.pet?.owner?.nombre || 'Cliente',
-            phone: apt.pet?.owner?.telefono || '',
-            email: apt.pet?.owner?.correo || ''
-          },
-          pet: {
-            id: apt.pet?.id?.toString() || 'unknown',
-            name: apt.pet?.name || 'Mascota',
-            type: apt.pet?.specie === 'canino' ? 'perro' : apt.pet?.specie === 'felino' ? 'gato' : 'otro',
-            breed: apt.pet?.breed || 'Mestizo',
-            age: 0, // Not available in current schema
-            weight: 0 // Not available in current schema
-          },
-          veterinarian: {
-            id: apt.vet?.id?.toString() || 'unknown',
-            name: apt.vet?.name || 'Veterinario'
-          },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }));
+        // Debug: Log the raw data to see what we're getting from Supabase
+        console.log('Raw appointment data from Supabase:', response.data);
+        
+        // Transform the data to match the Appointment interface using real data from JOINs
+        const transformedAppointments = (response.data || []).map(apt => {
+          console.log('Processing appointment:', apt);
+          console.log('User data:', apt.users);
+          console.log('Pet data:', apt.pet);
+          console.log('Vet data:', apt.vet);
+          
+          return {
+            id: apt.id.toString(),
+            date: apt.date,
+            time: apt.hour,
+            duration: apt.duration_minutes || 60,
+            status: apt.status,
+            type: 'consulta_general',
+            reason: apt.speciality?.name || 'Consulta veterinaria',
+            notes: '',
+            // Store the raw IDs for editing and navigation
+            appointmentData: {
+              user_id: apt.user_id,
+              pet_id: apt.pet_id,
+              vet_id: apt.vet_id,
+              speciality_id: apt.speciality_id,
+              branch_id: apt.branch_id
+            },
+            owner: {
+              id: apt.user_id.toString(),
+              name: apt.users?.nombre || 'Cliente',
+              phone: apt.users?.telefono || '',
+              email: apt.users?.correo || '',
+              address: apt.users?.direccion || ''
+            },
+            pet: {
+              id: apt.pet_id.toString(),
+              name: apt.pet?.name || 'Mascota',
+              type: apt.pet?.specie === 'canino' ? 'perro' : 
+                    apt.pet?.specie === 'felino' ? 'gato' : 'otro',
+              breed: apt.pet?.breed || 'Mestizo',
+              age: 0,
+              weight: 0
+            },
+            veterinarian: {
+              id: apt.vet_id.toString(),
+              name: apt.vet?.name || 'Veterinario'
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+        });
         
         setAppointments(transformedAppointments as Appointment[]);
       }
@@ -242,11 +268,23 @@ export function NewWeeklyCalendar({
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section);
-    // Aquí puedes agregar navegación a otras secciones cuando estén implementadas
-    if (section === 'inicio') {
-      router.push('/dashboard');
+    
+    switch (section) {
+      case 'inicio':
+        router.push('/dashboard');
+        break;
+      case 'personal':
+        router.push('/dashboard/staff');
+        break;
+      case 'historial':
+        router.push('/dashboard/patients');
+        break;
+      case 'calendario':
+        // Stay on current page
+        break;
+      default:
+        break;
     }
-    // Placeholder para otras secciones cuando estén implementadas
   };
 
   const getDateForDayIndex = (dayIndex: number) => {
@@ -283,27 +321,150 @@ export function NewWeeklyCalendar({
   };
 
   const handleEditAppointment = (appointment: Appointment) => {
-    setShowModal(false);
-    setSelectedAppointment(null);
+    // Enable inline editing mode
+    setEditingAppointment(appointment);
+    setEditForm({
+      date: appointment.date,
+      vet_id: appointment.appointmentData?.vet_id || parseInt(appointment.veterinarian?.id || '0')
+    });
+    
+    // Load available veterinarians for the selector
+    loadAvailableVets();
+    
+    // Keep modal open during editing
+    // setShowModal(false);
+    // setSelectedAppointment(null);
+    
+    // Call the parent handler if provided
     if (onEditAppointment) {
       onEditAppointment(appointment);
     }
   };
 
+  const loadAvailableVets = async () => {
+    try {
+      const response = await calendarService.getAvailableVets();
+      if (response.error) {
+        console.error('Error loading veterinarians:', response.error);
+        // Fallback to empty array
+        setAvailableVets([]);
+      } else {
+        setAvailableVets(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading veterinarians:', error);
+      setAvailableVets([]);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingAppointment) return;
+
+    try {
+      setLoading(true);
+
+      // Validate the new date and veterinarian
+      if (!editForm.date || !editForm.vet_id) {
+        alert('Por favor complete todos los campos requeridos.');
+        setLoading(false);
+        return;
+      }
+
+      // Validate date is not in the past
+      const selectedDate = new Date(editForm.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (selectedDate < today) {
+        alert('No se puede programar una cita en una fecha pasada.');
+        setLoading(false);
+        return;
+      }
+
+      // Validate veterinarian is available (basic validation)
+      if (editForm.vet_id === 0) {
+        alert('Por favor seleccione un veterinario válido.');
+        setLoading(false);
+        return;
+      }
+
+      // Check if it's the same data (no changes)
+      const originalVetId = editingAppointment.appointmentData?.vet_id || parseInt(editingAppointment.veterinarian?.id || '0');
+      if (editForm.date === editingAppointment.date && editForm.vet_id === originalVetId) {
+        alert('No se han realizado cambios en la cita.');
+        setEditingAppointment(null);
+        setLoading(false);
+        return;
+      }
+
+      // Validate weekend (Saturday = 6, Sunday = 0)
+      const dayOfWeek = selectedDate.getDay();
+      if (dayOfWeek === 0) { // Sunday
+        alert('No se pueden programar citas los domingos.');
+        setLoading(false);
+        return;
+      }
+
+      // Update appointment in Supabase
+      const appointmentId = parseInt(editingAppointment.id);
+      const updateData: any = {};
+      
+      if (editForm.date !== editingAppointment.date) {
+        updateData.date = editForm.date;
+      }
+      
+      if (editForm.vet_id !== originalVetId) {
+        updateData.vet_id = editForm.vet_id;
+      }
+
+      console.log('Updating appointment in Supabase:', { appointmentId, updateData });
+
+      const response = await calendarService.updateAppointment(appointmentId, updateData);
+      
+      if (response.error) {
+        console.error('Error updating appointment:', response.error);
+        alert(`Error al actualizar la cita: ${response.error}`);
+        setLoading(false);
+        return;
+      }
+
+      // Success
+      const vetName = availableVets.find(v => v.id === editForm.vet_id)?.name || 'N/A';
+      alert(`✅ Cita actualizada correctamente:\n\n📅 Nueva fecha: ${format(parseISO(editForm.date), "dd 'de' MMMM", { locale: es })}\n👨‍⚕️ Veterinario: ${vetName}\n🕒 Hora: ${editingAppointment.time}`);
+
+      // Exit editing mode
+      setEditingAppointment(null);
+      setShowModal(false);
+      setSelectedAppointment(null);
+
+      // Reload appointments to show updated data
+      loadAppointments();
+    } catch (error) {
+      console.error('Error saving appointment edit:', error);
+      alert('Error inesperado al guardar los cambios. Por favor intente nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingAppointment(null);
+    setEditForm({ date: '', vet_id: 0 });
+  };
+
   const handleGoToPatientRecord = (appointment: Appointment) => {
-    // Simulate going to patient record with alert for now
-    // In a real application, this would navigate to a patient details page
     setShowModal(false);
     setSelectedAppointment(null);
 
-    // Create a URL-friendly patient ID or use existing ID
-    const patientId = appointment.pet.id || 'new';
-    const message = `Navegando a la ficha del paciente:\n\nMascota: ${appointment.pet.name}\nPropietario: ${appointment.owner.name}\nTipo: ${appointment.pet.type.charAt(0).toUpperCase() + appointment.pet.type.slice(1)}\n\nEn una aplicación real, esto abriría la ficha completa del paciente.`;
-
-    alert(message);
-
-    // TODO: Implement actual navigation to patient record page
-    // router.push(`/dashboard/patients/${patientId}`)
+    // Navigate directly to patient medical record using pet_id from appointment database
+    const petId = appointment.appointmentData?.pet_id || appointment.pet.id;
+    if (petId && petId !== 'unknown' && petId !== '0') {
+      router.push(`/dashboard/patients/${petId}`);
+    } else {
+      console.error('Pet ID not found in appointment data');
+      // Fallback: navigate to patients list
+      router.push('/dashboard/patients');
+    }
   };
 
   const getCurrentTimePosition = () => {
@@ -869,25 +1030,83 @@ export function NewWeeklyCalendar({
                     <div className="new-calendar-modal-field-label">
                       Fecha y hora
                     </div>
-                    <div className="new-calendar-modal-field-value">
-                      {format(
-                        parseISO(selectedAppointment.date),
-                        "EEEE dd 'de' MMMM",
-                        { locale: es }
-                      )}{' '}
-                      - {selectedAppointment.time} a{' '}
-                      {format(
-                        new Date(
-                          new Date().setHours(
-                            parseInt(selectedAppointment.time.split(':')[0]),
-                            parseInt(selectedAppointment.time.split(':')[1]) +
-                              selectedAppointment.duration
-                          )
-                        ),
-                        'HH:mm'
-                      )}{' '}
-                      hrs
-                    </div>
+                    {editingAppointment?.id === selectedAppointment.id ? (
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '12px',
+                        padding: '8px',
+                        backgroundColor: '#f8f9fa',
+                        borderRadius: '6px',
+                        border: '1px solid #e2e8f0'
+                      }}>
+                        <div style={{ flex: '1' }}>
+                          <label style={{ 
+                            display: 'block', 
+                            fontSize: '12px', 
+                            fontWeight: '500', 
+                            color: '#6b7280',
+                            marginBottom: '4px'
+                          }}>
+                            Nueva fecha:
+                          </label>
+                          <input
+                            type="date"
+                            value={editForm.date}
+                            onChange={(e) => setEditForm({...editForm, date: e.target.value})}
+                            style={{
+                              width: '100%',
+                              padding: '6px 10px',
+                              borderRadius: '4px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '14px',
+                              backgroundColor: 'white',
+                              outline: 'none',
+                              transition: 'border-color 0.2s'
+                            }}
+                            onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                            onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                          />
+                        </div>
+                        <div style={{ 
+                          fontSize: '14px', 
+                          color: '#6b7280',
+                          fontWeight: '500'
+                        }}>
+                          🕒 {selectedAppointment.time} a{' '}
+                          {format(
+                            new Date(
+                              new Date().setHours(
+                                parseInt(selectedAppointment.time.split(':')[0]),
+                                parseInt(selectedAppointment.time.split(':')[1]) +
+                                  selectedAppointment.duration
+                              )
+                            ),
+                            'HH:mm'
+                          )} hrs
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="new-calendar-modal-field-value">
+                        {format(
+                          parseISO(selectedAppointment.date),
+                          "EEEE dd 'de' MMMM",
+                          { locale: es }
+                        )}{' '}
+                        - {selectedAppointment.time} a{' '}
+                        {format(
+                          new Date(
+                            new Date().setHours(
+                              parseInt(selectedAppointment.time.split(':')[0]),
+                              parseInt(selectedAppointment.time.split(':')[1]) +
+                                selectedAppointment.duration
+                            )
+                          ),
+                          'HH:mm'
+                        )}{' '}
+                        hrs
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -897,33 +1116,102 @@ export function NewWeeklyCalendar({
                     <div className="new-calendar-modal-field-label">
                       Se atenderá con
                     </div>
-                    <div className="new-calendar-modal-field-value">
-                      {selectedAppointment.veterinarian?.name || 'No asignado'}
-                    </div>
+                    {editingAppointment?.id === selectedAppointment.id ? (
+                      <div style={{ 
+                        padding: '8px',
+                        backgroundColor: '#f8f9fa',
+                        borderRadius: '6px',
+                        border: '1px solid #e2e8f0'
+                      }}>
+                        <label style={{ 
+                          display: 'block', 
+                          fontSize: '12px', 
+                          fontWeight: '500', 
+                          color: '#6b7280',
+                          marginBottom: '6px'
+                        }}>
+                          Cambiar veterinario:
+                        </label>
+                        <select
+                          value={editForm.vet_id}
+                          onChange={(e) => setEditForm({...editForm, vet_id: parseInt(e.target.value)})}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '4px',
+                            border: '1px solid #d1d5db',
+                            fontSize: '14px',
+                            backgroundColor: 'white',
+                            outline: 'none',
+                            cursor: 'pointer',
+                            transition: 'border-color 0.2s'
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                          onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                        >
+                          <option value={0}>Seleccionar veterinario</option>
+                          {availableVets.map((vet) => (
+                            <option key={vet.id} value={vet.id}>
+                              {vet.name}
+                            </option>
+                          ))}
+                        </select>
+                        {editForm.vet_id > 0 && (
+                          <div style={{ 
+                            marginTop: '4px', 
+                            fontSize: '12px', 
+                            color: '#10b981',
+                            fontWeight: '500'
+                          }}>
+                            ✓ {availableVets.find(v => v.id === editForm.vet_id)?.name || ''}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="new-calendar-modal-field-value">
+                        {selectedAppointment.veterinarian?.name || 'No asignado'}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="new-calendar-modal-field">
-                  <Phone className="new-calendar-modal-field-icon" />
+                  <FileText className="new-calendar-modal-field-icon" />
                   <div className="new-calendar-modal-field-content">
-                    <div className="new-calendar-modal-field-label">
-                      Teléfono
-                    </div>
+                    <div className="new-calendar-modal-field-label">Mascota</div>
                     <div className="new-calendar-modal-field-value">
-                      {selectedAppointment.owner.phone}
+                      {selectedAppointment.pet.name} ({selectedAppointment.pet.type.charAt(0).toUpperCase() + selectedAppointment.pet.type.slice(1)})
+                      {selectedAppointment.pet.breed && selectedAppointment.pet.breed !== 'Mestizo' && 
+                        ` - ${selectedAppointment.pet.breed}`}
                     </div>
                   </div>
                 </div>
 
-                <div className="new-calendar-modal-field">
-                  <Mail className="new-calendar-modal-field-icon" />
-                  <div className="new-calendar-modal-field-content">
-                    <div className="new-calendar-modal-field-label">Email</div>
-                    <div className="new-calendar-modal-field-value">
-                      {selectedAppointment.owner.email || 'No especificado'}
+                {selectedAppointment.owner.phone && (
+                  <div className="new-calendar-modal-field">
+                    <Phone className="new-calendar-modal-field-icon" />
+                    <div className="new-calendar-modal-field-content">
+                      <div className="new-calendar-modal-field-label">
+                        Teléfono
+                      </div>
+                      <div className="new-calendar-modal-field-value">
+                        {selectedAppointment.owner.phone}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {selectedAppointment.owner.email && (
+                  <div className="new-calendar-modal-field">
+                    <Mail className="new-calendar-modal-field-icon" />
+                    <div className="new-calendar-modal-field-content">
+                      <div className="new-calendar-modal-field-label">Email</div>
+                      <div className="new-calendar-modal-field-value">
+                        {selectedAppointment.owner.email}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="new-calendar-modal-field">
                   <FileText className="new-calendar-modal-field-icon" />
@@ -975,34 +1263,106 @@ export function NewWeeklyCalendar({
                     justifyContent: 'flex-end',
                   }}
                 >
-                  <button
-                    onClick={() => handleEditAppointment(selectedAppointment)}
-                    style={{
-                      background: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      padding: '0.5rem 1rem',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem',
-                      fontWeight: '500',
-                    }}
-                  >
-                    ✏️ Editar
-                  </button>
-                  <button
-                    onClick={() => handleGoToPatientRecord(selectedAppointment)}
-                    style={{
-                      background: 'none',
-                      border: '1px solid #e2e8f0',
-                      padding: '0.5rem 1rem',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem',
-                    }}
-                  >
-                    📋 Ir a la ficha
-                  </button>
+                  {editingAppointment?.id === selectedAppointment.id ? (
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      justifyContent: 'flex-end',
+                      padding: '12px 0',
+                      borderTop: '1px solid #e2e8f0',
+                      marginTop: '16px'
+                    }}>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={loading}
+                        style={{
+                          background: '#f3f4f6',
+                          color: '#6b7280',
+                          border: '1px solid #d1d5db',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          cursor: loading ? 'not-allowed' : 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          transition: 'all 0.2s',
+                          opacity: loading ? 0.6 : 1
+                        }}
+                        onMouseOver={(e) => {
+                          if (!loading) {
+                            e.target.style.backgroundColor = '#e5e7eb';
+                            e.target.style.color = '#374151';
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          if (!loading) {
+                            e.target.style.backgroundColor = '#f3f4f6';
+                            e.target.style.color = '#6b7280';
+                          }
+                        }}
+                      >
+                        {loading ? '⏳' : '❌'} Cancelar
+                      </button>
+                      <button
+                        onClick={handleSaveEdit}
+                        disabled={loading}
+                        style={{
+                          background: loading ? '#93c5fd' : '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          cursor: loading ? 'not-allowed' : 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          transition: 'all 0.2s',
+                          opacity: loading ? 0.8 : 1
+                        }}
+                        onMouseOver={(e) => {
+                          if (!loading) {
+                            e.target.style.backgroundColor = '#2563eb';
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          if (!loading) {
+                            e.target.style.backgroundColor = '#3b82f6';
+                          }
+                        }}
+                      >
+                        {loading ? '⏳ Guardando...' : '💾 Guardar Cambios'}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleEditAppointment(selectedAppointment)}
+                        style={{
+                          background: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                        }}
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => handleGoToPatientRecord(selectedAppointment)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #e2e8f0',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        📋 Ir a la ficha
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

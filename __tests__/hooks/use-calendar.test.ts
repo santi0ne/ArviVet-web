@@ -1,28 +1,51 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
+
+// Crear mocks antes de importar
+const mockAvailabilityService = {
+  getVetAvailability: jest.fn(),
+  isSlotAvailable: jest.fn(),
+  findNextAvailableSlot: jest.fn(),
+  getAvailabilityStatistics: jest.fn(),
+};
+
+const mockVetScheduleService = {
+  getVetScheduleByDay: jest.fn(),
+  getVetSchedules: jest.fn(),
+  getVetSchedulesBySpeciality: jest.fn(),
+  createSchedule: jest.fn(),
+  updateSchedule: jest.fn(),
+  deleteSchedule: jest.fn(),
+};
+
+const mockAppointmentBlockService = {
+  getBlocksByDateRange: jest.fn(),
+  getBlocksByDate: jest.fn(),
+  isTimeSlotBlocked: jest.fn(),
+  createBlock: jest.fn(),
+  createRecurringBlock: jest.fn(),
+  deleteBlock: jest.fn(),
+};
+
+// Mock de los servicios
+jest.mock('@/services/availability-service', () => ({
+  availabilityService: mockAvailabilityService
+}));
+
+jest.mock('@/services/vet-schedule-service', () => ({
+  vetScheduleService: mockVetScheduleService
+}));
+
+jest.mock('@/services/appointment-block-service', () => ({
+  appointmentBlockService: mockAppointmentBlockService
+}));
+
+// Importar después de los mocks
 import {
   useCalendar,
   useVetSchedule,
   useAppointmentBlocks,
 } from '@/hooks/use-calendar';
-import { availabilityService } from '@/services/availability-service';
-import { vetScheduleService } from '@/services/vet-schedule-service';
-import { appointmentBlockService } from '@/services/appointment-block-service';
-
-// Mock de los servicios
-jest.mock('@/services/availability-service');
-jest.mock('@/services/vet-schedule-service');
-jest.mock('@/services/appointment-block-service');
-
-const mockAvailabilityService = availabilityService as jest.Mocked<
-  typeof availabilityService
->;
-const mockVetScheduleService = vetScheduleService as jest.Mocked<
-  typeof vetScheduleService
->;
-const mockAppointmentBlockService = appointmentBlockService as jest.Mocked<
-  typeof appointmentBlockService
->;
 
 describe('useCalendar Hook', () => {
   beforeEach(() => {

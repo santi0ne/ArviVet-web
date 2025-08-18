@@ -48,6 +48,14 @@ export interface Appointment {
   };
   createdAt: string;
   updatedAt: string;
+  // Additional data for editing and database operations
+  appointmentData?: {
+    user_id: number;
+    pet_id: number;
+    vet_id: number;
+    speciality_id: number;
+    branch_id: number;
+  };
 }
 
 export interface AppointmentFormData {

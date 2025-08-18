@@ -698,7 +698,7 @@ export function EditAppointmentModal({
                 <SelectValue placeholder="Seleccionar veterinario" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-600">
-                <SelectItem value="">Sin asignar</SelectItem>
+                <SelectItem value="none">Sin asignar</SelectItem>
                 <SelectItem value="vet1">Dr. Carlos Rodríguez</SelectItem>
                 <SelectItem value="vet2">Dra. Ana López</SelectItem>
               </SelectContent>
