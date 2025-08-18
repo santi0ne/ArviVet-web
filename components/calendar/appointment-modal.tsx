@@ -1,88 +1,99 @@
-"use client"
+'use client';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { 
-  Calendar, 
-  Clock, 
-  User, 
-  Heart, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  FileText, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import {
+  Calendar,
+  Clock,
+  User,
+  Heart,
+  Phone,
+  Mail,
+  MapPin,
+  FileText,
   Stethoscope,
   Edit,
   Scale,
-  Gift
-} from "lucide-react"
-import { format, parseISO } from "date-fns"
-import { es } from "date-fns/locale"
-import type { Appointment } from "@/types/appointment"
+  Gift,
+} from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import type { Appointment } from '@/types/appointment';
 
 interface AppointmentModalProps {
-  appointment: Appointment
-  isOpen: boolean
-  onClose: () => void
-  onEdit: (appointment: Appointment) => void
-  canEdit: boolean
+  appointment: Appointment;
+  isOpen: boolean;
+  onClose: () => void;
+  onEdit: (appointment: Appointment) => void;
+  canEdit: boolean;
 }
 
-export function AppointmentModal({ 
-  appointment, 
-  isOpen, 
-  onClose, 
-  onEdit, 
-  canEdit 
+export function AppointmentModal({
+  appointment,
+  isOpen,
+  onClose,
+  onEdit,
+  canEdit,
 }: AppointmentModalProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "programada": return "bg-blue-500 hover:bg-blue-600"
-      case "en_curso": return "bg-yellow-500 hover:bg-yellow-600"
-      case "completada": return "bg-green-500 hover:bg-green-600"
-      case "cancelada": return "bg-red-500 hover:bg-red-600"
-      case "no_asistio": return "bg-gray-500 hover:bg-gray-600"
-      default: return "bg-gray-500 hover:bg-gray-600"
+      case 'programada':
+        return 'bg-blue-500 hover:bg-blue-600';
+      case 'en_curso':
+        return 'bg-yellow-500 hover:bg-yellow-600';
+      case 'completada':
+        return 'bg-green-500 hover:bg-green-600';
+      case 'cancelada':
+        return 'bg-red-500 hover:bg-red-600';
+      case 'no_asistio':
+        return 'bg-gray-500 hover:bg-gray-600';
+      default:
+        return 'bg-gray-500 hover:bg-gray-600';
     }
-  }
+  };
 
   const getStatusText = (status: string) => {
     const statusMap = {
-      "programada": "Programada",
-      "en_curso": "En Curso",
-      "completada": "Completada",
-      "cancelada": "Cancelada",
-      "no_asistio": "No Asistió"
-    }
-    return statusMap[status as keyof typeof statusMap] || status
-  }
+      programada: 'Programada',
+      en_curso: 'En Curso',
+      completada: 'Completada',
+      cancelada: 'Cancelada',
+      no_asistio: 'No Asistió',
+    };
+    return statusMap[status as keyof typeof statusMap] || status;
+  };
 
   const getTypeText = (type: string) => {
     const typeMap = {
-      "consulta_general": "Consulta General",
-      "vacunacion": "Vacunación",
-      "cirugia": "Cirugía",
-      "revision": "Revisión",
-      "emergencia": "Emergencia",
-      "control": "Control",
-      "otros": "Otros"
-    }
-    return typeMap[type as keyof typeof typeMap] || type
-  }
+      consulta_general: 'Consulta General',
+      vacunacion: 'Vacunación',
+      cirugia: 'Cirugía',
+      revision: 'Revisión',
+      emergencia: 'Emergencia',
+      control: 'Control',
+      otros: 'Otros',
+    };
+    return typeMap[type as keyof typeof typeMap] || type;
+  };
 
   const getPetTypeText = (type: string) => {
     const petTypeMap = {
-      "perro": "Perro",
-      "gato": "Gato",
-      "ave": "Ave",
-      "roedor": "Roedor",
-      "reptil": "Reptil",
-      "otro": "Otro"
-    }
-    return petTypeMap[type as keyof typeof petTypeMap] || type
-  }
+      perro: 'Perro',
+      gato: 'Gato',
+      ave: 'Ave',
+      roedor: 'Roedor',
+      reptil: 'Reptil',
+      otro: 'Otro',
+    };
+    return petTypeMap[type as keyof typeof petTypeMap] || type;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -108,10 +119,15 @@ export function AppointmentModal({
           {/* Header with status and type */}
           <div className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
             <div className="flex items-center gap-3">
-              <Badge className={`${getStatusColor(appointment.status)} text-white`}>
+              <Badge
+                className={`${getStatusColor(appointment.status)} text-white`}
+              >
                 {getStatusText(appointment.status)}
               </Badge>
-              <Badge variant="outline" className="border-gray-500 text-gray-300">
+              <Badge
+                variant="outline"
+                className="border-gray-500 text-gray-300"
+              >
                 {getTypeText(appointment.type)}
               </Badge>
             </div>
@@ -127,7 +143,11 @@ export function AppointmentModal({
               <div>
                 <p className="text-sm text-gray-400">Fecha</p>
                 <p className="font-medium">
-                  {format(parseISO(appointment.date), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+                  {format(
+                    parseISO(appointment.date),
+                    "EEEE, d 'de' MMMM 'de' yyyy",
+                    { locale: es }
+                  )}
                 </p>
               </div>
             </div>
@@ -135,7 +155,9 @@ export function AppointmentModal({
               <Clock className="w-5 h-5 text-green-400" />
               <div>
                 <p className="text-sm text-gray-400">Hora y Duración</p>
-                <p className="font-medium">{appointment.time} ({appointment.duration} min)</p>
+                <p className="font-medium">
+                  {appointment.time} ({appointment.duration} min)
+                </p>
               </div>
             </div>
           </div>
@@ -205,7 +227,10 @@ export function AppointmentModal({
                 {appointment.pet.age && (
                   <div className="flex items-center gap-2">
                     <Gift className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm">{appointment.pet.age} año{appointment.pet.age !== 1 ? 's' : ''}</span>
+                    <span className="text-sm">
+                      {appointment.pet.age} año
+                      {appointment.pet.age !== 1 ? 's' : ''}
+                    </span>
                   </div>
                 )}
                 {appointment.pet.weight && (
@@ -228,13 +253,21 @@ export function AppointmentModal({
             </h3>
             <div className="space-y-3">
               <div>
-                <p className="text-sm text-gray-400 mb-1">Motivo de la consulta:</p>
-                <p className="text-white bg-gray-700/30 p-3 rounded-lg">{appointment.reason}</p>
+                <p className="text-sm text-gray-400 mb-1">
+                  Motivo de la consulta:
+                </p>
+                <p className="text-white bg-gray-700/30 p-3 rounded-lg">
+                  {appointment.reason}
+                </p>
               </div>
               {appointment.notes && (
                 <div>
-                  <p className="text-sm text-gray-400 mb-1">Notas adicionales:</p>
-                  <p className="text-white bg-gray-700/30 p-3 rounded-lg">{appointment.notes}</p>
+                  <p className="text-sm text-gray-400 mb-1">
+                    Notas adicionales:
+                  </p>
+                  <p className="text-white bg-gray-700/30 p-3 rounded-lg">
+                    {appointment.notes}
+                  </p>
                 </div>
               )}
             </div>
@@ -250,7 +283,9 @@ export function AppointmentModal({
                   Veterinario Asignado
                 </h3>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{appointment.veterinarian.name}</span>
+                  <span className="font-medium">
+                    {appointment.veterinarian.name}
+                  </span>
                 </div>
               </div>
             </>
@@ -260,11 +295,21 @@ export function AppointmentModal({
 
           {/* Metadata */}
           <div className="text-xs text-gray-500 space-y-1">
-            <p>Creada: {format(parseISO(appointment.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}</p>
-            <p>Actualizada: {format(parseISO(appointment.updatedAt), "dd/MM/yyyy HH:mm", { locale: es })}</p>
+            <p>
+              Creada:{' '}
+              {format(parseISO(appointment.createdAt), 'dd/MM/yyyy HH:mm', {
+                locale: es,
+              })}
+            </p>
+            <p>
+              Actualizada:{' '}
+              {format(parseISO(appointment.updatedAt), 'dd/MM/yyyy HH:mm', {
+                locale: es,
+              })}
+            </p>
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

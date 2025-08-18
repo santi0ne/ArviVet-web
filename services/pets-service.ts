@@ -9,27 +9,51 @@ import {
 export const petsService = {
   // Obtener todas las mascotas con información del dueño
   async getAllPets(): Promise<PetWithOwner[]> {
-    const { data, error } = await supabase
-      .from("pet")
-      .select(
-        `
-        *,
-        users:owner_id (
-          id,
-          nombre,
-          correo,
-          telefono
-        )
-      `
-      )
-      .order("id", { ascending: false });
+    try {
 
-    if (error) {
-      console.error("Error fetching pets:", error);
+      const { data, error } = await supabase
+        .from("pet")
+        .select(
+          `
+          *,
+          users:owner_id (
+            id,
+            nombre,
+            correo,
+            telefono
+          )
+        `
+        )
+        .order("id", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching pets:", error);
+        console.error("Error details:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        
+        // Si es un error de RLS, dar más información específica
+        if (error.code === '42501' || error.message.includes('row-level security')) {
+          throw new Error(`Sin permisos para ver las mascotas. Verifique las políticas RLS en Supabase.`);
+        }
+        
+        if (error.code === 'PGRST116') {
+          throw new Error("La tabla 'pet' no existe o no tiene permisos de lectura.");
+        }
+        
+        throw error;
+      }
+
+      console.log("Pets fetched successfully:", data?.length || 0);
+      console.log("Sample pet data:", data?.[0]);
+      return data || [];
+    } catch (error) {
+      console.error("getAllPets error:", error);
       throw error;
     }
-
-    return data || [];
   },
 
   // Obtener una mascota por ID con información del dueño

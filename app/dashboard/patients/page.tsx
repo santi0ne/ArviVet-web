@@ -1,16 +1,16 @@
 // app/dashboard/patients/page.tsx
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Search, ArrowLeft } from "lucide-react";
-import { authService } from "@/services/auth-service";
-import { petsService } from "@/services/pets-service";
-import { PetWithOwner } from "@/types/database";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Search, ArrowLeft } from 'lucide-react';
+import { authService } from '@/services/auth-service';
+import { petsService } from '@/services/pets-service';
+import { PetWithOwner } from '@/types/database';
 
 export default function PatientsPage() {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [pets, setPets] = useState<PetWithOwner[]>([]);
   const [filteredPets, setFilteredPets] = useState<PetWithOwner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +19,7 @@ export default function PatientsPage() {
   useEffect(() => {
     // Verificar autenticación
     if (!authService.isAuthenticated()) {
-      router.push("/login");
+      router.push('/login');
       return;
     }
 
@@ -35,8 +35,8 @@ export default function PatientsPage() {
       setPets(petsData);
       setFilteredPets(petsData);
     } catch (err) {
-      setError("Error al cargar las mascotas");
-      console.error("Error loading pets:", err);
+      setError('Error al cargar las mascotas');
+      console.error('Error loading pets:', err);
     } finally {
       setLoading(false);
     }
@@ -50,9 +50,9 @@ export default function PatientsPage() {
     }
 
     const filtered = pets.filter(
-      (pet) =>
+      pet =>
         pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (pet.users?.nombre || "")
+        (pet.users?.nombre || '')
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
         pet.breed.toLowerCase().includes(searchTerm.toLowerCase())
@@ -65,7 +65,7 @@ export default function PatientsPage() {
   };
 
   const handleBackToDashboard = () => {
-    router.push("/dashboard");
+    router.push('/dashboard');
   };
 
   const calculateAge = (birthDate: string): string => {
@@ -77,11 +77,11 @@ export default function PatientsPage() {
     if (diffDays < 365) {
       const months = Math.floor(diffDays / 30);
       return months > 0
-        ? `${months} ${months === 1 ? "mes" : "meses"}`
+        ? `${months} ${months === 1 ? 'mes' : 'meses'}`
         : `${diffDays} días`;
     } else {
       const years = Math.floor(diffDays / 365);
-      return `${years} ${years === 1 ? "año" : "años"}`;
+      return `${years} ${years === 1 ? 'año' : 'años'}`;
     }
   };
 
@@ -134,7 +134,7 @@ export default function PatientsPage() {
             type="text"
             placeholder="Buscar por nombre, dueño, especie o raza..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="search-input"
           />
         </div>
@@ -142,7 +142,7 @@ export default function PatientsPage() {
 
       {/* Grid de mascotas */}
       <div className="pets-grid">
-        {filteredPets.map((pet) => (
+        {filteredPets.map(pet => (
           <div
             key={pet.id}
             className="pet-card"
@@ -164,7 +164,7 @@ export default function PatientsPage() {
                 {pet.sex} • {pet.breed}
               </p>
               <p className="pet-owner">
-                Dueño: {pet.users?.nombre || "No asignado"}
+                Dueño: {pet.users?.nombre || 'No asignado'}
               </p>
               <p className="pet-age">Edad: {calculateAge(pet.birth_date)}</p>
               <p className="pet-weight">Peso: {pet.weigth} kg</p>

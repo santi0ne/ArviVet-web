@@ -1,0 +1,92 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build application
+        run: npm run build
+
+      - name: Install Playwright
+        run: |
+          npx playwright install chromium
+
+      - name: Start application
+        run: |
+          npm start &
+          npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Run basic E2E tests
+        run: |
+          # Create basic E2E test if playwright not configured
+          if [ ! -d "e2e" ] && [ ! -d "tests" ] && [ ! -f "playwright.config.ts" ]; then
+            mkdir -p e2e
+            cat > e2e/basic.spec.ts << 'EOF'
+          import { test, expect } from '@playwright/test'
+
+          test('homepage loads successfully', async ({ page }) => {
+            await page.goto('http://localhost:3000')
+            await expect(page).toHaveTitle(/ArviVet|Veterinaria|Home|Dashboard/)
+          })
+
+          test('login page is accessible', async ({ page }) => {
+            await page.goto('http://localhost:3000/login')
+            await expect(page.locator('form')).toBeVisible()
+          })
+          EOF
+            
+            # Create basic playwright config
+            cat > playwright.config.ts << 'EOF'
+          import { defineConfig } from '@playwright/test'
+
+          export default defineConfig({
+            testDir: './e2e',
+            timeout: 30000,
+            use: {
+              baseURL: 'http://localhost:3000',
+              headless: true,
+            },
+            projects: [
+              {
+                name: 'chromium',
+                use: { ...devices['Desktop Chrome'] },
+              },
+            ],
+          })
+          EOF
+            
+            npx playwright test
+          else
+            echo "Playwright configured, running existing tests"
+            npx playwright test
+          fi
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            test-results/
+            playwright-report/

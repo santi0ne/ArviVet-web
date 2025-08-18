@@ -3,6 +3,7 @@
 
 # Node.js dependencies
 node_modules/
+.claude/
 
 # Build directories
 dist/
@@ -47,3 +48,9 @@ services/
 
 # Additional Next.js build cache
 .next/cache/
+
+# Coverage reports
+coverage/
+
+# TypeScript build info
+*.tsbuildinfo

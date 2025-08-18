@@ -1,58 +1,82 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { authService } from "@/services/auth-service"
-import { NewWeeklyCalendar } from "@/components/calendar/new-weekly-calendar"
-import { EditAppointmentModal } from "@/components/calendar/edit-appointment-modal"
-import type { Appointment } from "@/types/appointment"
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { authService } from '@/services/auth-service';
+import { usePermissions } from '@/hooks/use-permissions';
+import { NewWeeklyCalendar } from '@/components/calendar/new-weekly-calendar';
+import { EditAppointmentModal } from '@/components/calendar/edit-appointment-modal';
+import type { Appointment } from '@/types/appointment';
 
-export default function CalendarPage() {
-  const router = useRouter()
-  const [userRole, setUserRole] = useState("")
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+function CalendarPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { permissions, loading: permissionsLoading } = usePermissions();
+  const [editingAppointment, setEditingAppointment] =
+    useState<Appointment | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedVetId, setSelectedVetId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (!authService.isAuthenticated()) {
-        router.push("/login")
-        return
-      }
-
-      const userType = authService.getUserType()
-      if (userType) {
-        setUserRole(userType === "administrativo" ? "Administrador" : "Veterinario")
-      }
+    if (!authService.isAuthenticated()) {
+      router.push('/login');
+      return;
     }
-  }, [router])
+
+    // Obtener veterinario específico desde URL si existe
+    const vetParam = searchParams.get('vet');
+    if (vetParam) {
+      setSelectedVetId(parseInt(vetParam, 10));
+    } else if (permissions.isVet && permissions.currentVetId) {
+      // Si es veterinario, mostrar solo sus citas
+      setSelectedVetId(permissions.currentVetId);
+    }
+  }, [router, searchParams, permissions]);
 
   const handleAppointmentClick = (appointment: Appointment) => {
     // El modal se maneja internamente en el nuevo componente
-  }
+  };
 
   const handleEditAppointment = (appointment: Appointment) => {
-    setEditingAppointment(appointment)
-    setIsEditModalOpen(true)
-  }
+    // Verificar permisos antes de permitir edición
+    if (
+      permissions.canEditAppointment &&
+      permissions.canEditAppointment(appointment)
+    ) {
+      setEditingAppointment(appointment);
+      setIsEditModalOpen(true);
+    }
+  };
 
   const handleCloseEditModal = () => {
-    setIsEditModalOpen(false)
-    setEditingAppointment(null)
-  }
+    setIsEditModalOpen(false);
+    setEditingAppointment(null);
+  };
 
   const handleSaveAppointment = (updatedAppointment: Appointment) => {
     // Aquí se podría actualizar el estado global o hacer una llamada a la API
-    setIsEditModalOpen(false)
-    setEditingAppointment(null)
+    setIsEditModalOpen(false);
+    setEditingAppointment(null);
+  };
+
+  if (permissionsLoading) {
+    return (
+      <div className="calendar-container">
+        <div className="calendar-overlay" />
+        <div className="loading-message">
+          <p>Cargando calendario...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <>
-      <NewWeeklyCalendar 
+      <NewWeeklyCalendar
         onAppointmentClick={handleAppointmentClick}
-        userRole={userRole}
+        permissions={permissions}
         onEditAppointment={handleEditAppointment}
+        selectedVetId={selectedVetId}
       />
 
       {editingAppointment && (
@@ -61,8 +85,24 @@ export default function CalendarPage() {
           isOpen={isEditModalOpen}
           onClose={handleCloseEditModal}
           onSave={handleSaveAppointment}
+          canEdit={permissions.canEditAppointment(editingAppointment)}
         />
       )}
     </>
-  )
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={
+      <div className="calendar-container">
+        <div className="calendar-overlay" />
+        <div className="loading-message">
+          <p>Cargando calendario...</p>
+        </div>
+      </div>
+    }>
+      <CalendarPageContent />
+    </Suspense>
+  );
 }

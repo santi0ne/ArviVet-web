@@ -1,12 +1,12 @@
 // app/dashboard/patients/[id]/page.tsx
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Calendar, User, Heart, Activity } from "lucide-react";
-import { authService } from "@/services/auth-service";
-import { petsService } from "@/services/pets-service";
-import { PatientHistory } from "@/types/database";
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { ArrowLeft, Calendar, User, Heart, Activity } from 'lucide-react';
+import { authService } from '@/services/auth-service';
+import { petsService } from '@/services/pets-service';
+import { PatientHistory } from '@/types/database';
 
 export default function PatientDetailPage() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function PatientDetailPage() {
   useEffect(() => {
     // Verificar autenticación
     if (!authService.isAuthenticated()) {
-      router.push("/login");
+      router.push('/login');
       return;
     }
 
@@ -33,22 +33,22 @@ export default function PatientDetailPage() {
       const petId = parseInt(params.id as string);
 
       if (isNaN(petId)) {
-        setError("ID de paciente inválido");
+        setError('ID de paciente inválido');
         return;
       }
 
       const data = await petsService.getPatientHistory(petId);
       setPatientData(data);
     } catch (err) {
-      setError("Error al cargar los datos del paciente");
-      console.error("Error loading patient data:", err);
+      setError('Error al cargar los datos del paciente');
+      console.error('Error loading patient data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleBackToPatients = () => {
-    router.push("/dashboard/patients");
+    router.push('/dashboard/patients');
   };
 
   const calculateAge = (birthDate: string): string => {
@@ -60,11 +60,11 @@ export default function PatientDetailPage() {
     if (diffDays < 365) {
       const months = Math.floor(diffDays / 30);
       return months > 0
-        ? `${months} ${months === 1 ? "mes" : "meses"}`
+        ? `${months} ${months === 1 ? 'mes' : 'meses'}`
         : `${diffDays} días`;
     } else {
       const years = Math.floor(diffDays / 365);
-      return `${years} ${years === 1 ? "año" : "años"}`;
+      return `${years} ${years === 1 ? 'año' : 'años'}`;
     }
   };
 
@@ -183,7 +183,7 @@ export default function PatientDetailPage() {
                   <span className="detail-value">
                     {new Date(
                       patientData.pet.sterilization_date
-                    ).toLocaleDateString("es-ES")}
+                    ).toLocaleDateString('es-ES')}
                   </span>
                 </div>
               )}
@@ -230,10 +230,10 @@ export default function PatientDetailPage() {
                   <div className="visit-header">
                     <div className="visit-date">
                       <Calendar className="date-icon" />
-                      {new Date(appointment.date).toLocaleDateString("es-ES", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
+                      {new Date(appointment.date).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
                       })}
                       <span className="visit-time">
                         {appointment.hour.substring(0, 5)}
@@ -242,7 +242,7 @@ export default function PatientDetailPage() {
                     <span
                       className={`visit-type visit-type-${appointment.status
                         .toLowerCase()
-                        .replace(" ", "-")}`}
+                        .replace(' ', '-')}`}
                     >
                       {appointment.status}
                     </span>
@@ -251,24 +251,29 @@ export default function PatientDetailPage() {
                   <div className="visit-content">
                     <div className="visit-info-grid">
                       <div className="visit-detail">
-                        <strong>Veterinario:</strong> {appointment.vet?.name || 'No asignado'}
+                        <strong>Veterinario:</strong>{' '}
+                        {appointment.vet?.name || 'No asignado'}
                       </div>
                       {appointment.speciality && (
                         <div className="visit-detail">
-                          <strong>Especialidad:</strong> {appointment.speciality.name}
+                          <strong>Especialidad:</strong>{' '}
+                          {appointment.speciality.name}
                         </div>
                       )}
                       <div className="visit-detail">
-                        <strong>Sucursal:</strong> {appointment.branch?.direction || 'No especificada'}
+                        <strong>Sucursal:</strong>{' '}
+                        {appointment.branch?.direction || 'No especificada'}
                       </div>
                       <div className="visit-detail">
-                        <strong>Duración:</strong> {appointment.duration_minutes || 20} minutos
+                        <strong>Duración:</strong>{' '}
+                        {appointment.duration_minutes || 20} minutos
                       </div>
                     </div>
 
                     {appointment.branch?.telephone && (
                       <div className="branch-info">
-                        <strong>Teléfono sucursal:</strong> {appointment.branch.telephone}
+                        <strong>Teléfono sucursal:</strong>{' '}
+                        {appointment.branch.telephone}
                       </div>
                     )}
 

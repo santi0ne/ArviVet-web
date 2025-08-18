@@ -1,5 +1,6 @@
-// Define el servicio de autenticación que simula llamadas a una API
-import type { LoginFormData } from "@/lib/validations/auth" // Tipo de datos para el formulario de login
+// Define el servicio de autenticación usando Supabase Auth
+import type { LoginFormData } from "@/lib/validations/auth"
+import { supabase } from "@/lib/supabase"
 
 // Interfaz para la respuesta de la autenticación
 interface AuthResponse {
@@ -21,64 +22,123 @@ interface AuthResponse {
 class AuthService {
   private readonly baseUrl = "/api" // URL base para futuras llamadas a la API (actualmente no usada en el mock)
 
-  // Método para simular el inicio de sesión
+  // Método para autenticación con Supabase Auth real
   async login(credentials: LoginFormData): Promise<AuthResponse> {
     try {
-      // Simula un retraso de red de 1.5 segundos
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // Extrae email, contraseña y tipo de usuario de las credenciales
       const { email, password, userType } = credentials
 
-      // Credenciales de prueba predefinidas para diferentes tipos de usuario
-      const validCredentials = [
-        { email: "admin@arvivet.com", password: "admin123", type: "administrativo", name: "Dr. Carlos Administrador" },
-        { email: "vet@arvivet.com", password: "vet123", type: "veterinario", name: "Dr. María Veterinaria" },
-        { email: "admin@arvi.com", password: "password123", type: "administrativo", name: "Administrador General" },
-        { email: "vet@arvi.com", password: "password123", type: "veterinario", name: "Veterinario General" },
-      ]
+      // Intentar login con Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-      // Busca si las credenciales proporcionadas coinciden con alguna de las válidas
-      const validUser = validCredentials.find(
-        (cred) => cred.email === email && cred.password === password && cred.type === userType,
-      )
+      if (authError) {
+        console.error('Supabase auth error:', authError)
+        return {
+          success: false,
+          error: `Error de autenticación: ${authError.message}`,
+        }
+      }
 
-      if (validUser) {
-        // Si las credenciales son válidas, crea un objeto de usuario mock
-        const mockUser = {
-          id: Date.now().toString(), // ID único basado en el tiempo
-          email: email,
-          name: validUser.name,
-          userType: userType || "",
+      if (!authData.user) {
+        return {
+          success: false,
+          error: "No se pudo obtener la información del usuario",
+        }
+      }
+
+      // Obtener información del usuario de la base de datos
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select(`
+          id, 
+          nombre, 
+          correo, 
+          rol_id,
+          u_roles(nombre)
+        `)
+        .eq('correo', email)
+        .single()
+
+      if (userError) {
+        console.error('User data error:', userError)
+        // Si no encuentra el usuario en la DB, crear uno básico
+        const defaultUser = {
+          id: authData.user.id,
+          email: authData.user.email || email,
+          name: email.split('@')[0],
+          userType: userType || 'cliente',
         }
 
-        // Genera un token mock
-        const mockToken = "arvi-jwt-token-" + Date.now()
-
-        // Almacena el token y el tipo de usuario en localStorage (solo en el navegador)
+        // Almacenar datos en localStorage para compatibilidad
         if (typeof window !== "undefined") {
-          localStorage.setItem("auth-token", mockToken)
-          localStorage.setItem("user-type", userType || "")
-          localStorage.setItem("user-data", JSON.stringify(mockUser)) // Guarda también los datos del usuario
+          localStorage.setItem("auth-token", authData.session?.access_token || "")
+          localStorage.setItem("user-type", userType || 'cliente')
+          localStorage.setItem("user-data", JSON.stringify(defaultUser))
         }
 
-        // Retorna una respuesta exitosa
         return {
           success: true,
           data: {
-            user: mockUser,
-            token: mockToken,
+            user: defaultUser,
+            token: authData.session?.access_token || "",
           },
         }
       }
 
-      // Si las credenciales no son válidas, retorna un error
+      // Mapear el rol de la base de datos al userType esperado
+      const roleMapping: Record<string, string> = {
+        'Administrador': 'administrativo',
+        'admin': 'administrativo',
+        'Admin': 'administrativo',
+        'Veterinario': 'veterinario',
+        'veterinario': 'veterinario',
+        'Vet': 'veterinario',
+        'vet': 'veterinario',
+        'Cliente': 'cliente',
+        'cliente': 'cliente',
+        'Asistente': 'asistente',
+        'asistente': 'asistente'
+      }
+
+      const dbUserType = Array.isArray(userData.u_roles) && userData.u_roles.length > 0 
+        ? userData.u_roles[0].nombre 
+        : (userData.u_roles as any)?.nombre || 'Cliente'
+      const mappedUserType = roleMapping[dbUserType] || 'cliente'
+
+      // Verificar que el tipo de usuario coincida con el solicitado (si se especificó)
+      if (userType && mappedUserType !== userType) {
+        await supabase.auth.signOut()
+        return {
+          success: false,
+          error: `Su cuenta está registrada como ${dbUserType}, no como ${userType}`,
+        }
+      }
+
+      const user = {
+        id: authData.user.id,
+        email: authData.user.email || email,
+        name: userData.nombre,
+        userType: mappedUserType,
+      }
+
+      // Almacenar datos en localStorage para compatibilidad
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth-token", authData.session?.access_token || "")
+        localStorage.setItem("user-type", mappedUserType)
+        localStorage.setItem("user-data", JSON.stringify(user))
+      }
+
       return {
-        success: false,
-        error: `Credenciales inválidas para el tipo de usuario ${userType}. Verifique su email y contraseña.`,
+        success: true,
+        data: {
+          user,
+          token: authData.session?.access_token || "",
+        },
       }
     } catch (error) {
-      // Captura cualquier error durante la simulación de la llamada
+      console.error('Login error:', error)
       return {
         success: false,
         error: "Error de conexión con el servidor. Intente nuevamente.",
@@ -86,14 +146,21 @@ class AuthService {
     }
   }
 
-  // Método para simular el cierre de sesión
+  // Método para cerrar sesión con Supabase
   async logout(): Promise<void> {
-    // Elimina los datos de autenticación de localStorage (solo en el navegador)
+    try {
+      // Cerrar sesión en Supabase
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+    
+    // Elimina los datos de autenticación de localStorage
     if (typeof window !== "undefined") {
       localStorage.removeItem("auth-token")
       localStorage.removeItem("user-type")
       localStorage.removeItem("user-data")
-      localStorage.removeItem("selectedUserType") // También limpia el tipo de usuario seleccionado
+      localStorage.removeItem("selectedUserType")
     }
   }
 

@@ -7,8 +7,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true, // Deshabilita la optimización de imágenes de Next.js para usar imágenes directamente
+    unoptimized: true,
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;
